@@ -12,6 +12,14 @@ The default pin-out is:
 | 3 | MOSI |
 | 4 | MISO |
 
+## Usage
+
+Dump a flashchip:
+
+```
+flashrom -p serprog:dev=/dev/ttyACM0:115200 -r foo.bin
+```
+
 ## License
 
 The project is based on the spi_flash example by Raspberry Pi (Trading) Ltd. which is licensed under BSD-3-Clause.
