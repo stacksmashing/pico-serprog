@@ -16,10 +16,10 @@
 #include "pio/pio_spi.h"
 #include "spi.h"
 
-#define PIN_MISO 1
-#define PIN_MOSI 13
-#define PIN_SCK 12
-#define PIN_CS 9
+#define PIN_MISO 4
+#define PIN_MOSI 3
+#define PIN_SCK 2
+#define PIN_CS 1
 #define BUS_SPI         (1 << 3)
 #define S_SUPPORTED_BUS   BUS_SPI
 #define S_CMD_MAP ( \
