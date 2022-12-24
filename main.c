@@ -16,6 +16,7 @@
 #include "pio/pio_spi.h"
 #include "spi.h"
 
+#define PIN_CRESET 5
 #define PIN_MISO 4
 #define PIN_MOSI 3
 #define PIN_SCK 2
@@ -144,10 +145,18 @@ void process(pio_spi_inst_t *spi, int command) {
             putchar(0x0);
             break;
         case S_CMD_S_PIN_STATE:
-            //TODO:
-            getchar();
+	  {
+	    int pin_state = getchar();
+	    if(pin_state == 0) {
+	      // Disable pin drivers
+	      gpio_put(PIN_CRESET, 1);
+	    } else {
+	      // Enable pin drivers
+	      gpio_put(PIN_CRESET, 0);
+	    }
             putchar(S_ACK);
-            break;
+	  }
+	  break;
         default:
             putchar(S_NAK);
     }
@@ -164,7 +173,11 @@ int main() {
     gpio_put(PIN_CS, 1);
     gpio_set_dir(PIN_CS, GPIO_OUT);
 
-
+    // Initialize CRESET
+    gpio_init(PIN_CRESET);
+    gpio_put(PIN_CRESET, 1);
+    gpio_set_dir(PIN_CRESET, GPIO_OUT);
+    
     // We use PIO 1
     pio_spi_inst_t spi = {
             .pio = pio1,
