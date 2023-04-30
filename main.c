@@ -56,6 +56,14 @@ uint32_t getu24() {
     return c1 | (c2<<8) | (c3<<16);
 }
 
+uint32_t getu32() {
+    uint32_t c1 = getchar();
+    uint32_t c2 = getchar();
+    uint32_t c3 = getchar();
+    uint32_t c4 = getchar();
+    return c1 | (c2<<8) | (c3<<16) | (c4<<24);
+}
+
 void putu32(uint32_t d) {
     char buf[4];
     memcpy(buf, &d, 4);
@@ -136,6 +144,8 @@ void process(pio_spi_inst_t *spi, int command) {
             }
             break;
         case S_CMD_S_SPI_FREQ:
+            getu32();
+
             // TODO
             putchar(S_ACK);
             putchar(0x0);
