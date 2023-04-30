@@ -16,6 +16,7 @@
 #include "pio/pio_spi.h"
 #include "spi.h"
 
+#define PIN_LED PICO_DEFAULT_LED_PIN
 #define PIN_MISO 4
 #define PIN_MOSI 3
 #define PIN_SCK 2
@@ -193,10 +194,16 @@ int main() {
                  PIN_MOSI,
                  PIN_MISO);
 
+    gpio_init(PIN_LED);
+    gpio_set_dir(PIN_LED, GPIO_OUT);
+
     // Command handling
     while(1) {
         int command = getchar();
+
+        gpio_put(PIN_LED, 1);
         process(&spi, command);
+        gpio_put(PIN_LED, 0);
     }
 
     return 0;
