@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "pico/stdlib.h"
+#include "pico/binary_info.h"
 #include "pio/pio_spi.h"
 #include "spi.h"
 
@@ -165,6 +166,15 @@ void process(pio_spi_inst_t *spi, int command) {
 }
 
 int main() {
+    // Metadata for picotool
+    bi_decl(bi_program_description("Flashrom/serprog compatible firmware for the Raspberry Pi Pico"));
+    bi_decl(bi_program_url("https://github.com/stacksmashing/pico-serprog"));
+    bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
+    bi_decl(bi_1pin_with_name(PIN_MISO, "MISO"));
+    bi_decl(bi_1pin_with_name(PIN_MOSI, "MOSI"));
+    bi_decl(bi_1pin_with_name(PIN_SCK, "SCK"));
+    bi_decl(bi_1pin_with_name(PIN_CS, "CS#"));
+
     stdio_init_all();
 
     stdio_set_translate_crlf(&stdio_usb, false);
