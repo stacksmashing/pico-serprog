@@ -136,14 +136,16 @@ void process(const pio_spi_inst_t *spi, int command) {
                 pio_spi_write8_blocking(spi, write_buffer, wlen);
 
                 putchar(S_ACK);
-                char buf;
-                
-                for(uint32_t i = 0; i < rlen; i++)  {
-                    pio_spi_read8_blocking(spi, &buf, 1);
-                    putchar(buf);
+                uint32_t chunk;
+                char buf[128];
+
+                for(uint32_t i = 0; i < rlen; i += chunk) {
+                    chunk = MIN(rlen - i, sizeof(buf));
+                    pio_spi_read8_blocking(spi, buf, chunk);
+                    fwrite(buf, 1, chunk, stdout);
+                    fflush(stdout);
                 }
 
-                
                 cs_deselect(PIN_CS);
             }
             break;
