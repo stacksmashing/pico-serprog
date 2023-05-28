@@ -13,9 +13,11 @@
 #include <stdio.h>
 #include <string.h>
 #include "pico/stdlib.h"
+#include "pico/binary_info.h"
 #include "pio/pio_spi.h"
 #include "spi.h"
 
+#define PIN_LED PICO_DEFAULT_LED_PIN
 #define PIN_MISO 4
 #define PIN_MOSI 3
 #define PIN_SCK 2
@@ -54,6 +56,14 @@ uint32_t getu24() {
     uint32_t c2 = getchar();
     uint32_t c3 = getchar();
     return c1 | (c2<<8) | (c3<<16);
+}
+
+uint32_t getu32() {
+    uint32_t c1 = getchar();
+    uint32_t c2 = getchar();
+    uint32_t c3 = getchar();
+    uint32_t c4 = getchar();
+    return c1 | (c2<<8) | (c3<<16) | (c4<<24);
 }
 
 void putu32(uint32_t d) {
@@ -136,6 +146,8 @@ void process(pio_spi_inst_t *spi, int command) {
             }
             break;
         case S_CMD_S_SPI_FREQ:
+            getu32();
+
             // TODO
             putchar(S_ACK);
             putchar(0x0);
@@ -154,6 +166,15 @@ void process(pio_spi_inst_t *spi, int command) {
 }
 
 int main() {
+    // Metadata for picotool
+    bi_decl(bi_program_description("Flashrom/serprog compatible firmware for the Raspberry Pi Pico"));
+    bi_decl(bi_program_url("https://github.com/stacksmashing/pico-serprog"));
+    bi_decl(bi_1pin_with_name(PIN_LED, "LED"));
+    bi_decl(bi_1pin_with_name(PIN_MISO, "MISO"));
+    bi_decl(bi_1pin_with_name(PIN_MOSI, "MOSI"));
+    bi_decl(bi_1pin_with_name(PIN_SCK, "SCK"));
+    bi_decl(bi_1pin_with_name(PIN_CS, "CS#"));
+
     stdio_init_all();
 
     stdio_set_translate_crlf(&stdio_usb, false);
@@ -183,10 +204,16 @@ int main() {
                  PIN_MOSI,
                  PIN_MISO);
 
+    gpio_init(PIN_LED);
+    gpio_set_dir(PIN_LED, GPIO_OUT);
+
     // Command handling
     while(1) {
         int command = getchar();
+
+        gpio_put(PIN_LED, 1);
         process(&spi, command);
+        gpio_put(PIN_LED, 0);
     }
 
     return 0;
