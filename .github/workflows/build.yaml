@@ -1,0 +1,21 @@
+name: build
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y gcc-arm-none-eabi cmake
+      - uses: actions/checkout@v3
+      - run: git clone -b 1.5.0 https://github.com/raspberrypi/pico-sdk
+      - run: cd pico-sdk && git submodule update --init lib/tinyusb
+      - run: cmake -DPICO_SDK_PATH=$PWD/pico-sdk -DPICO_STDIO_USB=ON .
+      - run: make
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pico_serprog
+          path: |
+            README.md
+            COPYING
+            pico_serprog.elf
+            pico_serprog.uf2
