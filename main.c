@@ -166,6 +166,7 @@ void process(pio_spi_inst_t *spi, int command) {
 	      // Enable pin drivers
 	      gpio_put(PIN_CRESET, 0);
 	    }
+	    asm volatile("nop \n nop \n nop"); // FIXME
             putchar(S_ACK);
 	  }
 	  break;
@@ -188,7 +189,6 @@ int main() {
 
     stdio_set_translate_crlf(&stdio_usb, false);
 
-
     // Initialize CS
     gpio_init(PIN_CS);
     gpio_put(PIN_CS, 1);
@@ -203,19 +203,17 @@ int main() {
     pio_spi_inst_t spi = {
             .pio = pio1,
             .sm = 0,
-            .cs_pin = PIN_CS
+            .pin_cs = PIN_CS,
+	    .pin_sck = PIN_SCK,
+	    .pin_mosi = PIN_MOSI,
+	    .pin_miso = PIN_MISO
     };
 
-    uint offset = pio_add_program(spi.pio, &spi_cpha0_program);
-
-    pio_spi_init(spi.pio, spi.sm, offset,
+    pio_spi_init(&spi,
                  8,       // 8 bits per SPI frame
                  31.25f,  // 1 MHz @ 125 clk_sys
                  false,   // CPHA = 0
-                 false,   // CPOL = 0
-                 PIN_SCK,
-                 PIN_MOSI,
-                 PIN_MISO);
+                 false);  // CPOL = 0
 
     gpio_init(PIN_LED);
     gpio_set_dir(PIN_LED, GPIO_OUT);

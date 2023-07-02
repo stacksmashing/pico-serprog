@@ -12,6 +12,7 @@ The default pin-out is:
 | 2    |    4     | SCK      |
 | 3    |    5     | MOSI     |
 | 4    |    6     | MISO     |
+| 5    |    7     | CRESET   |
 
 ## Usage
 
