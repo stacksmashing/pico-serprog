@@ -17,9 +17,7 @@ void pio_spi_init(pio_spi_inst_t *spi, uint n_bits, float clkdiv, bool cpha, boo
     sm_config_set_in_shift(&c, false, true, n_bits);
     sm_config_set_clkdiv(&c, clkdiv);
 
-    // MOSI, SCK output are low, MISO is input
-    pio_sm_set_pins_with_mask(spi->pio, spi->sm, 0, (1u << spi->pin_sck) | (1u << spi->pin_mosi));
-    pio_sm_set_pindirs_with_mask(spi->pio, spi->sm, (1u << spi->pin_sck) | (1u << spi->pin_mosi), (1u << spi->pin_sck) | (1u << spi->pin_mosi) | (1u << spi->pin_miso));
+    // Set these pins to be used by PIO.
     pio_gpio_init(spi->pio, spi->pin_mosi);
     pio_gpio_init(spi->pio, spi->pin_miso);
     pio_gpio_init(spi->pio, spi->pin_sck);
@@ -31,7 +29,23 @@ void pio_spi_init(pio_spi_inst_t *spi, uint n_bits, float clkdiv, bool cpha, boo
     hw_set_bits(&spi->pio->input_sync_bypass, 1u << spi->pin_miso);
 
     pio_sm_init(spi->pio, spi->sm, spi->prog_offs, &c);
-    pio_sm_set_enabled(spi->pio, spi->sm, true);
+}
+
+void pio_spi_enable(pio_spi_inst_t *spi) {
+  // MOSI, SCK output are low, MISO is input
+  pio_sm_set_pins_with_mask(spi->pio, spi->sm, 0, (1u << spi->pin_sck) | (1u << spi->pin_mosi));
+  pio_sm_set_pindirs_with_mask(spi->pio, spi->sm, (1u << spi->pin_sck) | (1u << spi->pin_mosi), (1u << spi->pin_sck) | (1u << spi->pin_mosi) | (1u << spi->pin_miso));
+    
+  pio_sm_set_enabled(spi->pio, spi->sm, true); 
+  pio_sm_restart(spi->pio, spi->sm);
+}
+
+void pio_spi_disable(pio_spi_inst_t *spi) {
+  pio_sm_set_enabled(spi->pio, spi->sm, false);
+  
+  // Set these pins to INPUT. This way we allow them to be driven by
+  // someone else.
+  pio_sm_set_pindirs_with_mask(spi->pio, spi->sm, 0u, (1u << spi->pin_sck) | (1u << spi->pin_mosi) | (1u << spi->pin_miso));
 }
 
 // Just 8 bit functions provided here. The PIO program supports any frame size
