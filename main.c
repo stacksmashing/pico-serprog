@@ -63,13 +63,11 @@ static inline void cs_deselect(uint cs_pin) {
 static inline void output_drivers_enable() {
   pio_spi_enable(&spi);
   gpio_put(PIN_CRESET, 0);
-  asm volatile("nop \n nop \n nop"); // FIXME
 }
 
 static inline void output_drivers_disable() {
   gpio_put(PIN_CRESET, 1);
   pio_spi_disable(&spi);
-  asm volatile("nop \n nop \n nop"); // FIXME
 }
 
 uint32_t getu24() {
