@@ -12,8 +12,17 @@
 typedef struct pio_spi_inst {
     PIO pio;
     uint sm;
-    uint cs_pin;
+    uint pin_sck;
+    uint pin_mosi;
+    uint pin_miso;
+    uint prog_offs;
 } pio_spi_inst_t;
+
+void pio_spi_init(pio_spi_inst_t *spi, uint n_bits, float clkdiv, bool cpha, bool cpol);
+
+void pio_spi_enable(pio_spi_inst_t *spi);
+
+void pio_spi_disable(pio_spi_inst_t *spi);
 
 void pio_spi_write8_blocking(const pio_spi_inst_t *spi, const uint8_t *src, size_t len);
 

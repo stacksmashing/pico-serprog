@@ -6,6 +6,48 @@
 
 #include "pio_spi.h"
 
+void pio_spi_init(pio_spi_inst_t *spi, uint n_bits, float clkdiv, bool cpha, bool cpol) {
+  spi->prog_offs  = pio_add_program(spi->pio, cpha ? &spi_cpha1_program : &spi_cpha0_program);
+    pio_sm_config c = cpha ? spi_cpha1_program_get_default_config(spi->prog_offs) : spi_cpha0_program_get_default_config(spi->prog_offs);
+    sm_config_set_out_pins(&c, spi->pin_mosi, 1);
+    sm_config_set_in_pins(&c, spi->pin_miso);
+    sm_config_set_sideset_pins(&c, spi->pin_sck);
+    // Only support MSB-first in this example code (shift to left, auto push/pull, threshold=nbits)
+    sm_config_set_out_shift(&c, false, true, n_bits);
+    sm_config_set_in_shift(&c, false, true, n_bits);
+    sm_config_set_clkdiv(&c, clkdiv);
+
+    // Set these pins to be used by PIO.
+    pio_gpio_init(spi->pio, spi->pin_mosi);
+    pio_gpio_init(spi->pio, spi->pin_miso);
+    pio_gpio_init(spi->pio, spi->pin_sck);
+
+    // The pin muxes can be configured to invert the output (among other things
+    // and this is a cheesy way to get CPOL=1
+    gpio_set_outover(spi->pin_sck, cpol ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    // SPI is synchronous, so bypass input synchroniser to reduce input delay.
+    hw_set_bits(&spi->pio->input_sync_bypass, 1u << spi->pin_miso);
+
+    pio_sm_init(spi->pio, spi->sm, spi->prog_offs, &c);
+}
+
+void pio_spi_enable(pio_spi_inst_t *spi) {
+  // MOSI, SCK output are low, MISO is input
+  pio_sm_set_pins_with_mask(spi->pio, spi->sm, 0, (1u << spi->pin_sck) | (1u << spi->pin_mosi));
+  pio_sm_set_pindirs_with_mask(spi->pio, spi->sm, (1u << spi->pin_sck) | (1u << spi->pin_mosi), (1u << spi->pin_sck) | (1u << spi->pin_mosi) | (1u << spi->pin_miso));
+    
+  pio_sm_set_enabled(spi->pio, spi->sm, true); 
+  pio_sm_restart(spi->pio, spi->sm);
+}
+
+void pio_spi_disable(pio_spi_inst_t *spi) {
+  pio_sm_set_enabled(spi->pio, spi->sm, false);
+  
+  // Set these pins to INPUT. This way we allow them to be driven by
+  // someone else.
+  pio_sm_set_pindirs_with_mask(spi->pio, spi->sm, 0u, (1u << spi->pin_sck) | (1u << spi->pin_mosi) | (1u << spi->pin_miso));
+}
+
 // Just 8 bit functions provided here. The PIO program supports any frame size
 // 1...32, but the software to do the necessary FIFO shuffling is left as an
 // exercise for the reader :)
