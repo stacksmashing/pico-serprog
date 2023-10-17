@@ -1,6 +1,6 @@
 # pico-serprog
 
-This is a very basic flashrom/serprog compatible SPI flash reader/writer for the Raspberry Pi Pico.
+This is a basic flashrom/serprog compatible SPI flash reader/writer for the Raspberry Pi Pico.
 
 It does not require a custom version of flashrom, just drag the compiled uf2 onto your Pico and you're ready to go.
 
@@ -18,7 +18,7 @@ The default pin-out is:
 Dump a flashchip:
 
 ```
-flashrom -p serprog:dev=/dev/ttyACM0:115200 -r foo.bin
+flashrom -p serprog:dev=/dev/ttyACM0:115200,spispeed=12M -r foo.bin
 ```
 
 ## License

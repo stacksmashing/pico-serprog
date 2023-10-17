@@ -140,6 +140,9 @@ public entry_point:                 ; Must set X,Y to n-2 before starting!
 
 % c-sdk {
 #include "hardware/gpio.h"
+
+static const int pio_spi_cycles_per_bit = 4;
+
 static inline void pio_spi_cs_init(PIO pio, uint sm, uint prog_offs, uint n_bits, float clkdiv, bool cpha, bool cpol,
         uint pin_sck, uint pin_mosi, uint pin_miso) {
     pio_sm_config c = cpha ? spi_cpha1_cs_program_get_default_config(prog_offs) : spi_cpha0_cs_program_get_default_config(prog_offs);

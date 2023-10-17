@@ -14,6 +14,7 @@
 #include <string.h>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
+#include "hardware/clocks.h"
 #include "pio/pio_spi.h"
 #include "spi.h"
 
@@ -38,6 +39,7 @@
   (1 << S_CMD_S_PIN_STATE) \
 )
 
+static uint32_t serprog_spi_init(uint32_t freq);
 
 static inline void cs_select(uint cs_pin) {
     asm volatile("nop \n nop \n nop"); // FIXME
@@ -77,7 +79,7 @@ void putu32(uint32_t d) {
 
 unsigned char write_buffer[4096];
 
-void process(pio_spi_inst_t *spi, int command) {
+void process(const pio_spi_inst_t *spi, int command) {
     switch(command) {
         case S_CMD_NOP:
             putchar(S_ACK);
@@ -134,26 +136,29 @@ void process(pio_spi_inst_t *spi, int command) {
                 pio_spi_write8_blocking(spi, write_buffer, wlen);
 
                 putchar(S_ACK);
-                char buf;
-                
-                for(uint32_t i = 0; i < rlen; i++)  {
-                    pio_spi_read8_blocking(spi, &buf, 1);
-                    putchar(buf);
+                uint32_t chunk;
+                char buf[128];
+
+                for(uint32_t i = 0; i < rlen; i += chunk) {
+                    chunk = MIN(rlen - i, sizeof(buf));
+                    pio_spi_read8_blocking(spi, buf, chunk);
+                    fwrite(buf, 1, chunk, stdout);
+                    fflush(stdout);
                 }
 
-                
                 cs_deselect(PIN_CS);
             }
             break;
         case S_CMD_S_SPI_FREQ:
-            getu32();
-
-            // TODO
-            putchar(S_ACK);
-            putchar(0x0);
-            putchar(0x40);
-            putchar(0x0);
-            putchar(0x0);
+            {
+                uint32_t freq = getu32();
+                if (freq >= 1) {
+                    putchar(S_ACK);
+                    putu32(serprog_spi_init(freq));
+                } else {
+                    putchar(S_NAK);
+                }
+            }
             break;
         case S_CMD_S_PIN_STATE:
             //TODO:
@@ -163,6 +168,45 @@ void process(pio_spi_inst_t *spi, int command) {
         default:
             putchar(S_NAK);
     }
+}
+
+// We use PIO 1
+static const pio_spi_inst_t spi = {
+    .pio = pio1,
+    .sm = 0,
+    .cs_pin = PIN_CS
+};
+static uint spi_offset;
+
+static inline float freq_to_clkdiv(uint32_t freq) {
+    float div = clock_get_hz(clk_sys) * 1.0 / (freq * pio_spi_cycles_per_bit);
+
+    if (div < 1.0)
+        div = 1.0;
+    if (div > 65536.0)
+        div = 65536.0;
+
+    return div;
+}
+
+static inline uint32_t clkdiv_to_freq(float div) {
+    return clock_get_hz(clk_sys) / (div * pio_spi_cycles_per_bit);
+}
+
+static uint32_t serprog_spi_init(uint32_t freq) {
+
+    float clkdiv = freq_to_clkdiv(freq);
+
+    pio_spi_init(spi.pio, spi.sm, spi_offset,
+                 8,       // 8 bits per SPI frame
+                 clkdiv,
+                 false,   // CPHA = 0
+                 false,   // CPOL = 0
+                 PIN_SCK,
+                 PIN_MOSI,
+                 PIN_MISO);
+
+    return clkdiv_to_freq(clkdiv);
 }
 
 int main() {
@@ -185,24 +229,8 @@ int main() {
     gpio_put(PIN_CS, 1);
     gpio_set_dir(PIN_CS, GPIO_OUT);
 
-
-    // We use PIO 1
-    pio_spi_inst_t spi = {
-            .pio = pio1,
-            .sm = 0,
-            .cs_pin = PIN_CS
-    };
-
-    uint offset = pio_add_program(spi.pio, &spi_cpha0_program);
-
-    pio_spi_init(spi.pio, spi.sm, offset,
-                 8,       // 8 bits per SPI frame
-                 31.25f,  // 1 MHz @ 125 clk_sys
-                 false,   // CPHA = 0
-                 false,   // CPOL = 0
-                 PIN_SCK,
-                 PIN_MOSI,
-                 PIN_MISO);
+    spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
+    serprog_spi_init(1000000); // 1 MHz
 
     gpio_init(PIN_LED);
     gpio_set_dir(PIN_LED, GPIO_OUT);
