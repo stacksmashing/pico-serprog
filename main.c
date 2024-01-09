@@ -79,7 +79,14 @@ void putu32(uint32_t d) {
 
 unsigned char write_buffer[4096];
 
+void apply_pin_state(const pio_spi_inst_t *spi, bool state) {
+    pio_spi_enable_outputs(spi->pio, spi->sm, state, PIN_SCK, PIN_MOSI, PIN_MISO);
+    gpio_set_dir(PIN_CS, state? GPIO_OUT : GPIO_IN);
+}
+
 void process(const pio_spi_inst_t *spi, int command) {
+    static bool pin_state = false;
+
     switch(command) {
         case S_CMD_NOP:
             putchar(S_ACK);
@@ -155,14 +162,15 @@ void process(const pio_spi_inst_t *spi, int command) {
                 if (freq >= 1) {
                     putchar(S_ACK);
                     putu32(serprog_spi_init(freq));
+                    apply_pin_state(spi, pin_state);
                 } else {
                     putchar(S_NAK);
                 }
             }
             break;
         case S_CMD_S_PIN_STATE:
-            //TODO:
-            getchar();
+            pin_state = !!getchar();
+            apply_pin_state(spi, pin_state);
             putchar(S_ACK);
             break;
         default:
@@ -227,7 +235,7 @@ int main() {
     // Initialize CS
     gpio_init(PIN_CS);
     gpio_put(PIN_CS, 1);
-    gpio_set_dir(PIN_CS, GPIO_OUT);
+    gpio_set_dir(PIN_CS, GPIO_IN); // switch to output on S_CMD_S_PIN_STATE
 
     spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
     serprog_spi_init(1000000); // 1 MHz
