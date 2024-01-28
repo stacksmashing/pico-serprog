@@ -21,6 +21,11 @@ Dump a flashchip:
 flashrom -p serprog:dev=/dev/ttyACM0:115200,spispeed=12M -r foo.bin
 ```
 
+pico-serprog only switches the pins to output when requested by flashrom. This
+means that you can leave your pico-serprog programmer attached to the flash;
+you don't have to detach it before booting the board that you're programming.
+
+
 ## License
 
 The project is based on the spi_flash example by Raspberry Pi (Trading) Ltd. which is licensed under BSD-3-Clause.
