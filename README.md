@@ -6,12 +6,15 @@ It does not require a custom version of flashrom, just drag the compiled uf2 ont
 
 The default pin-out is:
 
-| GPIO | Pico Pin | Function |
-|------|----------|----------|
-| 1    |    2     | CS       |
-| 2    |    4     | SCK      |
-| 3    |    5     | MOSI     |
-| 4    |    6     | MISO     |
+| GPIO | Pico Pin | Function       |
+|------|----------|----------------|
+| 1    |    2     | CS_0 (default) |
+| 2    |    4     | SCK            |
+| 3    |    5     | MOSI           |
+| 4    |    6     | MISO           |
+| 5    |    7     | CS_1           |
+| 6    |    9     | CS_2           |
+| 7    |    10    | CS_3           |
 
 ## Usage
 
