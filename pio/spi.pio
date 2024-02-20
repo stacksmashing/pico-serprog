@@ -54,9 +54,9 @@ static inline void pio_spi_init(PIO pio, uint sm, uint prog_offs, uint n_bits,
     sm_config_set_in_shift(&c, false, true, n_bits);
     sm_config_set_clkdiv(&c, clkdiv);
 
-    // MOSI, SCK output are low, MISO is input
+    // MOSI, SCK output are low, MISO is input -- but we start in input mode
     pio_sm_set_pins_with_mask(pio, sm, 0, (1u << pin_sck) | (1u << pin_mosi));
-    pio_sm_set_pindirs_with_mask(pio, sm, (1u << pin_sck) | (1u << pin_mosi), (1u << pin_sck) | (1u << pin_mosi) | (1u << pin_miso));
+    pio_sm_set_pindirs_with_mask(pio, sm, 0, (1u << pin_sck) | (1u << pin_mosi) | (1u << pin_miso));
     pio_gpio_init(pio, pin_mosi);
     pio_gpio_init(pio, pin_miso);
     pio_gpio_init(pio, pin_sck);
@@ -70,6 +70,12 @@ static inline void pio_spi_init(PIO pio, uint sm, uint prog_offs, uint n_bits,
     pio_sm_init(pio, sm, prog_offs, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
+
+static inline void pio_spi_enable_outputs(PIO pio, uint sm, bool output, uint pin_sck, uint pin_mosi, uint pin_miso) {
+    uint mask = output? (1u << pin_sck) | (1u << pin_mosi) : 0;
+    pio_sm_set_pindirs_with_mask(pio, sm, mask, (1u << pin_sck) | (1u << pin_mosi) | (1u << pin_miso));
+}
+
 %}
 
 ; SPI with Chip Select

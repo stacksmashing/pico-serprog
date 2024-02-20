@@ -22,34 +22,42 @@
 #define PIN_MISO 4
 #define PIN_MOSI 3
 #define PIN_SCK 2
-#define PIN_CS 1
+#define PIN_CS_0 1
+#define PIN_CS_1 5
+#define PIN_CS_2 6
+#define PIN_CS_3 7
 #define BUS_SPI         (1 << 3)
 #define S_SUPPORTED_BUS   BUS_SPI
 #define S_CMD_MAP ( \
-  (1 << S_CMD_NOP)       | \
-  (1 << S_CMD_Q_IFACE)   | \
-  (1 << S_CMD_Q_CMDMAP)  | \
-  (1 << S_CMD_Q_PGMNAME) | \
-  (1 << S_CMD_Q_SERBUF)  | \
-  (1 << S_CMD_Q_BUSTYPE) | \
-  (1 << S_CMD_SYNCNOP)   | \
-  (1 << S_CMD_O_SPIOP)   | \
-  (1 << S_CMD_S_BUSTYPE) | \
-  (1 << S_CMD_S_SPI_FREQ)| \
-  (1 << S_CMD_S_PIN_STATE) \
+  (1 << S_CMD_NOP)         | \
+  (1 << S_CMD_Q_IFACE)     | \
+  (1 << S_CMD_Q_CMDMAP)    | \
+  (1 << S_CMD_Q_PGMNAME)   | \
+  (1 << S_CMD_Q_SERBUF)    | \
+  (1 << S_CMD_Q_BUSTYPE)   | \
+  (1 << S_CMD_SYNCNOP)     | \
+  (1 << S_CMD_O_SPIOP)     | \
+  (1 << S_CMD_S_BUSTYPE)   | \
+  (1 << S_CMD_S_SPI_FREQ)  | \
+  (1 << S_CMD_S_PIN_STATE) | \
+  (1 << S_CMD_S_SPI_CS)      \
 )
+
+uint active_cs_pin = 0;
+#define NUM_CS_AVAILABLE 4 // Number of usable chip selects
+uint8_t cs_pins[NUM_CS_AVAILABLE] = { PIN_CS_0, PIN_CS_1, PIN_CS_2, PIN_CS_3 };
 
 static uint32_t serprog_spi_init(uint32_t freq);
 
 static inline void cs_select(uint cs_pin) {
     asm volatile("nop \n nop \n nop"); // FIXME
-    gpio_put(cs_pin, 0);
+    gpio_put(cs_pins[cs_pin], 0);
     asm volatile("nop \n nop \n nop"); // FIXME
 }
 
 static inline void cs_deselect(uint cs_pin) {
     asm volatile("nop \n nop \n nop"); // FIXME
-    gpio_put(cs_pin, 1);
+    gpio_put(cs_pins[cs_pin], 1);
     asm volatile("nop \n nop \n nop"); // FIXME
 }
 
@@ -79,7 +87,16 @@ void putu32(uint32_t d) {
 
 unsigned char write_buffer[4096];
 
+void apply_pin_state(const pio_spi_inst_t *spi, bool state) {
+    pio_spi_enable_outputs(spi->pio, spi->sm, state, PIN_SCK, PIN_MOSI, PIN_MISO);
+    for (int i = 0; i < NUM_CS_AVAILABLE; i++) {
+        gpio_set_dir(cs_pins[i], state? GPIO_OUT : GPIO_IN);
+    }
+}
+
 void process(const pio_spi_inst_t *spi, int command) {
+    static bool pin_state = false;
+
     switch(command) {
         case S_CMD_NOP:
             putchar(S_ACK);
@@ -131,7 +148,7 @@ void process(const pio_spi_inst_t *spi, int command) {
                 uint32_t wlen = getu24();
                 uint32_t rlen = getu24();
 
-                cs_select(PIN_CS);
+                cs_select(active_cs_pin);
                 fread(write_buffer, 1, wlen, stdin);
                 pio_spi_write8_blocking(spi, write_buffer, wlen);
 
@@ -146,7 +163,7 @@ void process(const pio_spi_inst_t *spi, int command) {
                     fflush(stdout);
                 }
 
-                cs_deselect(PIN_CS);
+                cs_deselect(active_cs_pin);
             }
             break;
         case S_CMD_S_SPI_FREQ:
@@ -155,16 +172,28 @@ void process(const pio_spi_inst_t *spi, int command) {
                 if (freq >= 1) {
                     putchar(S_ACK);
                     putu32(serprog_spi_init(freq));
+                    apply_pin_state(spi, pin_state);
                 } else {
                     putchar(S_NAK);
                 }
             }
             break;
         case S_CMD_S_PIN_STATE:
-            //TODO:
-            getchar();
+            pin_state = !!getchar();
+            apply_pin_state(spi, pin_state);
             putchar(S_ACK);
             break;
+        case S_CMD_S_SPI_CS:
+            {
+                uint8_t new_cs = getchar();
+                if (new_cs < NUM_CS_AVAILABLE) {
+                        active_cs_pin = new_cs;
+                        putchar(S_ACK);
+                } else {
+                        putchar(S_NAK);
+                }
+                break;
+            }
         default:
             putchar(S_NAK);
     }
@@ -174,7 +203,6 @@ void process(const pio_spi_inst_t *spi, int command) {
 static const pio_spi_inst_t spi = {
     .pio = pio1,
     .sm = 0,
-    .cs_pin = PIN_CS
 };
 static uint spi_offset;
 
@@ -217,7 +245,10 @@ int main() {
     bi_decl(bi_1pin_with_name(PIN_MISO, "MISO"));
     bi_decl(bi_1pin_with_name(PIN_MOSI, "MOSI"));
     bi_decl(bi_1pin_with_name(PIN_SCK, "SCK"));
-    bi_decl(bi_1pin_with_name(PIN_CS, "CS#"));
+    bi_decl(bi_1pin_with_name(PIN_CS_0, "CS_0 (default)"));
+    bi_decl(bi_1pin_with_name(PIN_CS_1, "CS_1"));
+    bi_decl(bi_1pin_with_name(PIN_CS_2, "CS_2"));
+    bi_decl(bi_1pin_with_name(PIN_CS_3, "CS_3"));
 
     stdio_init_all();
 
@@ -225,9 +256,11 @@ int main() {
 
 
     // Initialize CS
-    gpio_init(PIN_CS);
-    gpio_put(PIN_CS, 1);
-    gpio_set_dir(PIN_CS, GPIO_OUT);
+    for (int i = 0; i < NUM_CS_AVAILABLE; i++) {
+        gpio_init(cs_pins[i]);
+        gpio_put(cs_pins[i], 1);
+        gpio_set_dir(cs_pins[i], GPIO_IN); // switch to output on S_CMD_S_PIN_STATE
+    }
 
     spi_offset = pio_add_program(spi.pio, &spi_cpha0_program);
     serprog_spi_init(1000000); // 1 MHz
