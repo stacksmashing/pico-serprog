@@ -130,13 +130,17 @@ void process(const pio_spi_inst_t *spi, int command) {
 
                 uint32_t wlen = getu24();
                 uint32_t rlen = getu24();
+                uint32_t chunk;
 
                 cs_select(PIN_CS);
-                fread(write_buffer, 1, wlen, stdin);
-                pio_spi_write8_blocking(spi, write_buffer, wlen);
+
+                for(uint32_t i = 0; i < wlen; i += chunk) {
+                    chunk = MIN(wlen - i, sizeof(write_buffer));
+                    fread(write_buffer, 1, wlen, stdin);
+                    pio_spi_write8_blocking(spi, write_buffer, wlen);
+                }
 
                 putchar(S_ACK);
-                uint32_t chunk;
                 char buf[128];
 
                 for(uint32_t i = 0; i < rlen; i += chunk) {
